@@ -89,7 +89,7 @@ export class Categories implements OnInit, OnDestroy {
   error: string | null = null;
 
   private categoryService = inject(CategoryService);
-  private router = inject(Router);
+  public router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private destroy$ = new Subject<void>();
 

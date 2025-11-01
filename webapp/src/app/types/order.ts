@@ -10,8 +10,19 @@ import { Product } from "./product";
 //       status?:string
 // }
 
+export interface OrderItemProduct {
+  _id: string;
+  name: string;
+  price: number;
+  discount?: number;
+  images?: string[];
+  shortDescription?: string;
+}
+
 export interface OrderItem {
-  productId: string;
+  _id?: string;
+  productId: string; // The ID reference
+  product?: OrderItemProduct; // The populated product data (when populated from backend)
   quantity: number;
 }
 

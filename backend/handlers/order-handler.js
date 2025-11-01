@@ -16,8 +16,12 @@ async function addOrder(userId, orderModel){
 // }
 
 async function getCustomerOrders(userId) {
-  let orders = await Order.find({ userId })
-    .populate("items.productId"); 
+  const orders = await Order.find({ userId })
+      .populate({
+        path: 'items.productId',  // ✅ Populate the productId field
+        select: 'name price discount images shortDescription' // ✅ Select fields to include
+      })
+      .sort({ createdAt: -1 });
 return orders.map(order => ({
     ...order.toObject(),
     items: order.items.map(item => ({
@@ -25,6 +29,7 @@ return orders.map(order => ({
       quantity: item.quantity
     }))
   }));
+
 }
 
 async function getOrders() {

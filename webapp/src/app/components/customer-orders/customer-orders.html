@@ -1,58 +1,168 @@
-<div class="max-w-5xl mx-auto p-6">
+<div class="px-8 py-6 bg-gray-50 min-h-screen">
   <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">My Orders</h2>
 
-<div *ngFor="let order of orders; trackBy: trackByOrderId" 
-     class="bg-white border border-gray-200 rounded-2xl p-6 mb-8 shadow-md hover:shadow-lg transition-shadow duration-300">
-
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-    <h3 class="text-xl font-semibold text-gray-800">
-      Order <span class="text-green-600 font-mono">#{{ order._id ? order._id.slice(-6).toUpperCase() : '' }}</span>
-    </h3>
-    <p class="text-sm text-gray-500 mt-2 sm:mt-0">
-      Placed on: <span class="font-medium text-gray-700">{{ order.date | date:'medium' }}</span>
-    </p>
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+    <p class="mt-4 text-gray-600">Loading your orders...</p>
   </div>
 
-  <div class="divide-y divide-gray-100">
-    <div *ngFor="let item of order.items; trackBy: trackByItemId" class="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-4">
-      <div class="flex items-center gap-4 w-full sm:w-auto">
-        <img
-          [src]="item.product.images[0]"
-          alt="{{ item.product.name }}"
-          class="w-24 h-24 object-cover rounded-xl border border-gray-100"
-        />
-        <div class="flex-1">
-          <h4 class="text-lg font-semibold text-gray-800">{{ item.product.name }}</h4>
-          <p class="text-sm text-gray-500 mb-1">{{ item.product.shortDescription }}</p>
-          <p class="text-sm font-semibold text-gray-900">₹{{ item.product.price }}</p>
+  <!-- Error State -->
+  <div *ngIf="error && !isLoading" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+    <p class="font-bold">Error</p>
+    <p>{{ error }}</p>
+    <button (click)="retryLoading()" class="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+      Retry
+    </button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && !error && orders.length === 0" class="text-center py-12 bg-white rounded-lg shadow">
+    <mat-icon class="text-gray-400 text-6xl mb-4">shopping_bag</mat-icon>
+    <h3 class="text-xl font-semibold text-gray-700 mb-2">No orders yet</h3>
+    <p class="text-gray-500 mb-6">Start shopping to see your orders here</p>
+    <a routerLink="/" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 inline-block">
+      Start Shopping
+    </a>
+  </div>
+
+  <!-- Orders List -->
+  <div *ngIf="!isLoading && !error && orders.length > 0">
+    <!-- Summary Card -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-gray-600 text-sm">Total Orders</p>
+          <p class="text-3xl font-bold text-gray-800">{{ orders.length }}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-gray-600 text-sm">Total Spent</p>
+          <p class="text-3xl font-bold text-green-600">₹{{ total }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Individual Orders -->
+    <div *ngFor="let order of orders; trackBy: trackByOrderId" 
+         class="bg-white border border-gray-200 rounded-2xl p-6 mb-8 shadow-md hover:shadow-lg transition-shadow duration-300">
+
+      <!-- Order Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 pb-4 border-b">
+        <h3 class="text-xl font-semibold text-gray-800">
+          Order <span class="text-green-600 font-mono">#{{ order._id ? order._id.slice(-6).toUpperCase() : 'N/A' }}</span>
+        </h3>
+        <div class="flex flex-col sm:items-end gap-2 mt-2 sm:mt-0">
+          <p class="text-sm text-gray-500">
+            Placed on: <span class="font-medium text-gray-700">{{ order.date | date:'medium' }}</span>
+          </p>
+          <span class="px-3 py-1 rounded-full text-white text-xs font-semibold inline-block"
+            [ngClass]="{
+              'bg-green-500': order.status === 'Delivered',
+              'bg-blue-500': order.status === 'Processing',
+              'bg-purple-500': order.status === 'Shipped',
+              'bg-yellow-500': order.status === 'Pending',
+              'bg-red-500': order.status === 'Cancelled'
+            }">
+            {{ order.status || 'Pending' }}
+          </span>
         </div>
       </div>
 
-      <div class="flex items-center justify-between sm:justify-end w-full sm:w-auto">
-        <span class="px-4 py-1 bg-gray-100 rounded-full text-gray-700 font-medium">
-          Qty: {{ item.quantity }}
-        </span>
+      <!-- Order Items -->
+      <div class="divide-y divide-gray-100">
+        <div *ngFor="let item of order.items; trackBy: trackByItemId" 
+             class="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-4">
+          
+          <div class="flex items-center gap-4 w-full sm:w-auto">
+            <!-- ✅ Changed from item.productId to item.product -->
+            <ng-container *ngIf="item.product">
+              <!-- Product Image -->
+              <img
+                *ngIf="item.product.images && item.product.images.length > 0"
+                [src]="item.product.images[0]"
+                [alt]="item.product.name"
+                class="w-24 h-24 object-cover rounded-xl border border-gray-100"
+                (error)="handleImageError($event)"
+              />
+              <div *ngIf="!item.product.images || item.product.images.length === 0" 
+                   class="w-24 h-24 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-gray-400 text-4xl">inventory_2</mat-icon>
+              </div>
+              
+              <!-- Product Details -->
+              <div class="flex-1">
+                <h4 class="text-lg font-semibold text-gray-800">{{ item.product.name }}</h4>
+                <p class="text-sm text-gray-500 mb-1">{{ item.product.shortDescription }}</p>
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-semibold text-gray-900">₹{{ item.product.price }}</p>
+                  <p *ngIf="item.product.discount" class="text-sm text-green-600">
+                    (Save ₹{{ item.product.discount }})
+                  </p>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- Fallback if product not available -->
+            <ng-container *ngIf="!item.product">
+              <div class="w-24 h-24 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-gray-400 text-4xl">inventory_2</mat-icon>
+              </div>
+              
+              <div class="flex-1">
+                <h4 class="text-lg font-semibold text-gray-800">Product</h4>
+                <p class="text-sm text-gray-500 mb-1">Product details unavailable</p>
+              </div>
+            </ng-container>
+          </div>
+
+          <!-- Quantity Badge -->
+          <div class="flex items-center justify-between sm:justify-end w-full sm:w-auto">
+            <span class="px-4 py-2 bg-green-50 rounded-full text-green-700 font-medium text-sm border border-green-200">
+              Qty: {{ item.quantity }}
+            </span>
+          </div>
+        </div>
       </div>
+
+      <!-- Order Footer -->
+      <div class="mt-6 pt-4 border-t space-y-3">
+        <!-- Payment & Status Row -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <mat-icon class="text-gray-500 text-sm">payment</mat-icon>
+            <p class="text-sm text-gray-600">
+              Payment: <span class="font-semibold text-gray-800 uppercase">{{ order.paymentType || 'COD' }}</span>
+            </p>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <!-- <mat-icon class="text-gray-500 text-sm">attach_money</mat-icon> -->
+            <p class="text-sm text-gray-600">
+              Total: <span class="font-bold text-gray-900 text-lg">₹{{ order.totalAmount }}</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Delivery Address -->
+        <div *ngIf="order.address" class="bg-blue-50 rounded-lg p-4 border border-blue-100">
+          <div class="flex items-start gap-2">
+            <mat-icon class="text-blue-600 text-sm mt-0.5">location_on</mat-icon>
+            <div class="flex-1">
+              <p class="font-semibold text-gray-800 text-sm mb-1">Delivery Address</p>
+              <div class="text-sm text-gray-700 space-y-0.5">
+                <p *ngIf="order.address.name"><strong>{{ order.address.name }}</strong></p>
+                <p *ngIf="order.address.street">{{ order.address.street }}</p>
+                <p *ngIf="order.address.city || order.address.state">
+                  {{ order.address.city }}<span *ngIf="order.address.state">, {{ order.address.state }}</span>
+                </p>
+                <p *ngIf="order.address.zip">PIN: {{ order.address.zip }}</p>
+                <p *ngIf="order.address.phone" class="font-medium">Phone: {{ order.address.phone }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
-
-  <div class="mt-4 flex items-center justify-between border-t pt-4">
-    <p class="text-sm text-gray-600">Payment Type: 
-      <span class="font-medium text-gray-800 uppercase">{{ order.paymentType }}</span>
-    </p>
-    <p class="text-sm text-gray-600">Status: 
-      <span class="px-3 py-1 rounded-full text-white text-xs font-semibold"
-        [ngClass]="{
-          'bg-green-500': order.status === 'completed',
-          'bg-yellow-500': order.status === 'inprogress',
-          'bg-red-500': order.status === 'cancelled',
-          'bg-blue-500':order.status ==='pending'
-        }">
-        {{ order.status }}
-      </span>
-    </p>
-  </div>
 </div>
-</div>
-
-

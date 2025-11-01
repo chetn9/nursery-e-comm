@@ -194,6 +194,7 @@ router.post("/order",async (req, res)=>{
 router.get("/orders", async (req, res) => {
   const userId = req.user.id;
   const orders = await getCustomerOrders(userId);
+  console.log(orders);
   return res.send(orders);
 });
 
